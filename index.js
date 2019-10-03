@@ -12,6 +12,21 @@ app.get('/', function (req, res) {
       // res.send('<pre>' + JSON.stringify(allCohorts, null, 4) + '</pre>')
       res.send('<ul>' + allCohorts.map(renderCohort).join('') + '</ul>')
     })
+  })
+
+app.get('/cohorts', function (req, res) {
+  getAllCohorts()
+    .then(function (allCohorts) {
+      res.send('<pre>' + JSON.stringify(allCohorts, null, 4) + '</pre>')
+      // res.send('<ul>' + allCohorts.map(renderCohort).join('') + '</ul>')
+    })
+  })
+
+app.get('/students', (req,res) => {
+  getAllStudents()
+    .then((allStudents) => {
+      res.send('<pre>' + JSON.stringify(allStudents, null, 4) + '</pre>')      
+    })
 })
 
 app.get('/cohorts/:slug', function (req, res) {
@@ -22,9 +37,15 @@ app.get('/cohorts/:slug', function (req, res) {
       } else {
         res.status(404).send('cohort not found :(')
       }
-    })
-
+    });
 })
+
+// app.post('/students', (req, res) => {
+//   knex('students')
+//   .insert({   name: ‘Taylor Blocker’, 
+//               isActive: true,
+//               cohortId: 1: 'hi@example.com' })
+// })
 
 app.listen(port, function () {
   console.log('Listening on port ' + port + ' 👍')
@@ -38,26 +59,28 @@ function renderCohort (cohort) {
 
 
 
-
-
-
-
-
-
-
-
-
-
 // -----------------------------------------------------
 // Database Stuff
 
 const getAllCohortsQuery = `
   SELECT *
-  FROM Cohorts
+  FROM cohorts
 `
+
+const getAllStudentsQuery = `
+  SELECT *
+  FROM students
+`
+// const insertStudentData = `
+//   se
+// `
 
 function getAllCohorts () {
   return db.raw(getAllCohortsQuery)
+}
+
+function getAllStudents () {
+  return db.raw(getAllStudentsQuery)
 }
 
 function getOneCohort (slug) {
