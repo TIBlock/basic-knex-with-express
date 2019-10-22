@@ -1,3 +1,6 @@
+const fs = require('fs')
+const mustache = require('mustache')
+
 const express = require('express')
 const app = express()
 
@@ -6,90 +9,85 @@ const db = require('knex')(dbConfigs.development)
 
 const port = 3000
 
+// -----------------------------------------------------------------------------
+// Express.js Endpoints
+
+const homepageTemplate = fs.readFileSync('./templates/homepage.mustache', 'utf8')
+
+app.use(express.urlencoded({extended:false}))
+
 app.get('/', function (req, res) {
   getAllCohorts()
     .then(function (allCohorts) {
-      // res.send('<pre>' + JSON.stringify(allCohorts, null, 4) + '</pre>')
-      res.send('<ul>' + allCohorts.map(renderCohort).join('') + '</ul>')
+      res.send(mustache.render(homepageTemplate, { cohortsListHTML: renderAllCohorts(allCohorts) }))
     })
-  })
+})
 
-app.get('/cohorts', function (req, res) {
-  getAllCohorts()
-    .then(function (allCohorts) {
-      res.send('<pre>' + JSON.stringify(allCohorts, null, 4) + '</pre>')
-      // res.send('<ul>' + allCohorts.map(renderCohort).join('') + '</ul>')
+app.post('/cohorts', function (req, res) {
+  createCohort(req.body)
+    .then(function () {
+      res.send('hopefully we created your cohort <a href="/">go home</a>')
     })
-  })
-
-app.get('/students', (req,res) => {
-  getAllStudents()
-    .then((allStudents) => {
-      res.send('<pre>' + JSON.stringify(allStudents, null, 4) + '</pre>')      
+    .catch(function () {
+      res.status(500).send('something went wrong. waaah, waaah')
     })
 })
 
 app.get('/cohorts/:slug', function (req, res) {
   getOneCohort(req.params.slug)
-    .then(function (cohorts) {
-      if (cohorts.length === 1) {
-        res.send('<pre>' + JSON.stringify(cohorts[0]) + '</pre>')
-      } else {
-        res.status(404).send('cohort not found :(')
-      }
-    });
+    .then(function (cohort) {
+      res.send('<pre>' + prettyPrintJSON(cohort) + '</pre>')
+    })
+    .catch(function (err) {
+      res.status(404).send('cohort not found :(')
+    })
 })
-
-// app.post('/students', (req, res) => {
-//   knex('students')
-//   .insert({   name: ‘Taylor Blocker’, 
-//               isActive: true,
-//               cohortId: 1: 'hi@example.com' })
-// })
 
 app.listen(port, function () {
   console.log('Listening on port ' + port + ' 👍')
 })
 
+// -----------------------------------------------------------------------------
+// HTML Rendering
+
 function renderCohort (cohort) {
-  return `
-    <li><a href="/cohorts/${cohort.slug}">${cohort.title}</a></li>
-  `
+  return `<li><a href="/cohorts/${cohort.slug}">${cohort.title}</a></li>`
 }
 
+function renderAllCohorts (allCohorts) {
+  return '<ul>' + allCohorts.map(renderCohort).join('') + '</ul>'
+}
 
-
-// -----------------------------------------------------
-// Database Stuff
+// -----------------------------------------------------------------------------
+// Database Queries
 
 const getAllCohortsQuery = `
   SELECT *
-  FROM cohorts
+  FROM Cohorts
 `
-
-const getAllStudentsQuery = `
-  SELECT *
-  FROM students
-`
-// const insertStudentData = `
-//   se
-// `
 
 function getAllCohorts () {
   return db.raw(getAllCohortsQuery)
 }
 
-function getAllStudents () {
-  return db.raw(getAllStudentsQuery)
-}
-
 function getOneCohort (slug) {
-  return db.raw("SELECT * FROM Cohorts WHERE slug = ?", [slug])
+  return db.raw('SELECT * FROM Cohorts WHERE slug = ?', [slug])
+    .then(function (results) {
+      if (results.length !== 1) {
+        throw null
+      } else {
+        return results[0]
+      }
+    })
 }
 
-// Using the knex.js query builder syntax:
-// db('Cohorts')
-//   // .where({ isActive: true })
-//   .then(function (cohorts) {
-//     console.log(cohorts)
-//   })
+function createCohort (cohort) {
+  return db.raw('INSERT INTO Cohorts (title, slug, isActive) VALUES (?, ?, true)', [cohort.title, cohort.slug])
+}
+
+// -----------------------------------------------------------------------------
+// Misc
+
+function prettyPrintJSON (x) {
+  return JSON.stringify(x, null, 2)
+}
